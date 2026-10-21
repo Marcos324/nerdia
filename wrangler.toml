@@ -14,16 +14,5 @@ database_name = "nerdia-content"
 database_id = "1d09ec87-027d-435e-8160-1be1465d2b84"
 migrations_dir = "migrations"
 
-# Fuentes (.woff) como binarios y el logo (.svg) como texto, para dibujar la imagen para redes.
-[[rules]]
-type = "Data"
-globs = ["**/*.woff"]
-fallthrough = true
-
-[[rules]]
-type = "Text"
-globs = ["**/*.svg"]
-fallthrough = true
-
 [observability]
 enabled = true

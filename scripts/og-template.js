@@ -1,17 +1,10 @@
-// nerdIA — imagen para redes por edición (1200×630 PNG).
+// nerdIA — plantilla de la imagen para redes por edición (1200×630).
 // Plantilla "OG · Nota principal" del sistema de diseño nerdIA: masthead con la taza,
 // doble regla, kicker, titular y, si la edición tiene cifra destacada, la tarjeta de cifra.
-
-import { ImageResponse } from "workers-og";
-import zillaSlab700 from "@fontsource/zilla-slab/files/zilla-slab-latin-700-normal.woff";
-import archivo400 from "@fontsource/archivo/files/archivo-latin-400-normal.woff";
-import archivo500 from "@fontsource/archivo/files/archivo-latin-500-normal.woff";
-import jetbrains600 from "@fontsource/jetbrains-mono/files/jetbrains-mono-latin-600-normal.woff";
-import jetbrains700 from "@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff";
-import markSvg from "../assets/nerdia-mark.svg";
+// La usa scripts/og.mjs (Node) para dibujar el PNG; no corre dentro del Worker.
 
 // Tokens del sistema de diseño (tema claro).
-const T = {
+export const T = {
   paper: "#F2E8D8",
   surface: "#FBF6EC",
   ink: "#2B1C12",
@@ -22,15 +15,8 @@ const T = {
   ruleSoft: "rgba(43,28,18,0.10)",
 };
 
-const FONTS = [
-  { name: "Zilla Slab", data: zillaSlab700, weight: 700, style: "normal" },
-  { name: "Archivo", data: archivo400, weight: 400, style: "normal" },
-  { name: "Archivo", data: archivo500, weight: 500, style: "normal" },
-  { name: "JetBrains Mono", data: jetbrains600, weight: 600, style: "normal" },
-  { name: "JetBrains Mono", data: jetbrains700, weight: 700, style: "normal" },
-];
 
-const MARK_URI = "data:image/svg+xml;base64," + btoa(markSvg);
+
 const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 function esc(s) {
@@ -65,7 +51,7 @@ function kickerParts(kicker) {
   return { tag: parts[0], rest: rest.length > 40 ? "" : rest };
 }
 
-export function ogHtml(ed) {
+export function ogHtml(ed, markUri) {
   const headline = recortar(ed.headline_es, 140);
   const hasStat = Boolean(ed.stat_value && String(ed.stat_value).trim());
   const size = headlineSize(headline, hasStat);
@@ -80,7 +66,7 @@ export function ogHtml(ed) {
     : "";
 
   const stat = hasStat
-    ? `<div style="display:flex;flex-direction:column;width:330px;flex-shrink:0;margin-left:48px;background:${T.surface};border:1px solid ${T.ruleSoft};border-radius:8px;padding:28px 28px 26px">
+    ? `<div style="display:flex;flex-direction:column;width:330px;min-width:330px;max-width:330px;flex-shrink:0;margin-left:48px;background:${T.surface};border:1px solid ${T.ruleSoft};border-radius:8px;padding:28px 28px 26px">
         <div style="display:flex;font-family:'JetBrains Mono';font-weight:600;font-size:${String(ed.stat_value).length > 6 ? 64 : 92}px;line-height:1;color:${T.accent}">${esc(String(ed.stat_value).trim())}</div>
         ${ed.stat_caption_es ? `<div style="display:flex;margin-top:12px;font-family:'Archivo';font-size:18px;line-height:1.45;color:${T.muted}">${esc(recortar(ed.stat_caption_es, 120))}</div>` : ""}
       </div>`
@@ -89,7 +75,7 @@ export function ogHtml(ed) {
   return `<div style="display:flex;flex-direction:column;width:1200px;height:630px;padding:52px 64px 48px;background:${T.paper};color:${T.ink};font-family:'Archivo'">
   <div style="display:flex;width:1072px;align-items:center">
     <div style="display:flex;align-items:center">
-      <img src="${MARK_URI}" width="52" height="52" />
+      <img src="${markUri}" width="52" height="52" />
       <div style="display:flex;flex-direction:column;margin-left:14px">
         <div style="display:flex;align-items:center;font-family:'Zilla Slab';font-weight:700;font-size:30px;line-height:1.1">nerd<div style="display:flex;font-family:'JetBrains Mono';font-weight:700;font-size:17px;color:${T.surface};background:${T.accent};padding:2px 8px 3px;border-radius:5px;margin-left:3px">IA</div></div>
         <div style="display:flex;font-family:'Archivo';font-weight:500;font-size:14px;color:${T.muted};margin-top:2px">The AI Desk</div>
@@ -116,8 +102,4 @@ export function ogHtml(ed) {
     <div style="display:flex;color:${T.ink}">nerdia.com.ar</div>
   </div>
 </div>`;
-}
-
-export function renderOg(ed) {
-  return new ImageResponse(ogHtml(ed), { width: 1200, height: 630, format: "png", fonts: FONTS });
 }

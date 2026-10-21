@@ -3,13 +3,14 @@
 // necesario para buscadores: robots.txt, sitemaps, archivo de ediciones con
 // URL propia, /sobre, RSS con enlaces permanentes y 404 reales.
 // Desde el 21 oct 2026: imagen para redes propia por edición en /og/AAAA-MM-DD.png.
-
-import { renderOg } from "./og.js";
+// La dibuja la tarea diaria (scripts/og.mjs) y la sube a la rama `og` del repo;
+// el Worker solo la sirve, así que no necesita el plan pago de Workers.
 
 const SITE = "https://nerdia.com.ar";
 const SITE_NAME = "nerdIA";
 const OG_IMAGE = "https://raw.githubusercontent.com/Marcos324/nerdia/main/assets/og-nerdia.png";
 const OG_VERSION = "1"; // subir cuando cambie la plantilla, para que las redes pidan la imagen nueva
+const OG_SOURCE = "https://raw.githubusercontent.com/Marcos324/nerdia/og/og"; // rama `og`, carpeta og/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const MESES_CORTOS = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
@@ -200,41 +201,21 @@ async function routeHome(env) {
   return html(date ? withOgImage(row.html, ogUrl(date)) : row.html);
 }
 
-// Imagen para redes de una edición. Se dibuja una sola vez: queda guardada en D1
-// (tabla og_images) y en la caché de Cloudflare; después solo se sirve.
-async function routeOg(env, ctx, request, date) {
+// Imagen para redes de una edición: la trae de la rama `og` del repo y la guarda en la
+// caché de Cloudflare. Si esa edición todavía no tiene imagen, manda a la genérica.
+async function routeOg(ctx, request, date) {
   const cache = caches.default;
   const cacheKey = new Request(`${SITE}/og/${date}.png?v=${OG_VERSION}`, { method: "GET" });
   const hit = await cache.match(cacheKey);
   if (hit) return request.method === "HEAD" ? new Response(null, hit) : hit;
 
-  const headers = {
-    "content-type": "image/png",
-    "cache-control": "public, max-age=86400, stale-while-revalidate=604800",
-    ...SEC_HEADERS,
-  };
+  const upstream = await fetch(`${OG_SOURCE}/${date}.png`, { cf: { cacheEverything: true, cacheTtlByStatus: { "200-299": 3600, "404": 60, "500-599": 0 } } });
+  if (!upstream.ok) return redirect(OG_IMAGE, 302);
 
-  let png = null;
-  try {
-    const stored = await env.NERDIA_D1.prepare("SELECT png FROM og_images WHERE date = ? AND version = ?").bind(date, OG_VERSION).first();
-    if (stored && stored.png) png = new Uint8Array(stored.png);
-  } catch (e) { /* tabla og_images todavía no creada: se dibuja igual */ }
-
-  if (!png) {
-    const ed = await env.NERDIA_D1.prepare("SELECT * FROM editions WHERE date = ?").bind(date).first();
-    if (!ed) return redirect(OG_IMAGE, 302);
-    try {
-      png = new Uint8Array(await renderOg(ed).arrayBuffer());
-    } catch (e) {
-      return redirect(OG_IMAGE, 302); // si falla el dibujo, la imagen genérica de siempre
-    }
-    ctx.waitUntil(
-      env.NERDIA_D1.prepare("INSERT OR REPLACE INTO og_images (date, version, png, created_at) VALUES (?, ?, ?, ?)")
-        .bind(date, OG_VERSION, png, new Date().toISOString()).run().catch(() => {})
-    );
-  }
-
-  const res = new Response(png, { status: 200, headers });
+  const res = new Response(upstream.body, {
+    status: 200,
+    headers: { "content-type": "image/png", "cache-control": "public, max-age=86400, stale-while-revalidate=604800", ...SEC_HEADERS },
+  });
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return request.method === "HEAD" ? new Response(null, res) : res;
 }
@@ -454,7 +435,7 @@ export default {
       const m = path.match(/^\/ediciones\/(\d{4}-\d{2}-\d{2})$/);
       if (m) return await routeEdition(env, m[1]);
       const og = path.match(/^\/og\/(\d{4}-\d{2}-\d{2})\.png$/);
-      if (og) return await routeOg(env, ctx, request, og[1]);
+      if (og) return await routeOg(ctx, request, og[1]);
       return notFound();
     } catch (e) {
       return text("nerdIA: error temporal, probá de nuevo en unos segundos.", "text/plain", 0, 503);
