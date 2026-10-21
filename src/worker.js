@@ -63,7 +63,9 @@ function withOgImage(page, image) {
   const tags = `<meta property="og:image" content="${image}">\n<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">\n<meta name="twitter:image" content="${image}">`;
   let out = page
     .replace(/<meta property="og:image(?::[a-z]+)?" content="[^"]*">\s*/g, "")
-    .replace(/<meta name="twitter:image(?::[a-z]+)?" content="[^"]*">\s*/g, "");
+    .replace(/<meta name="twitter:image(?::[a-z]+)?" content="[^"]*">\s*/g, "")
+    // el JSON-LD de la nota del día (id="ld-edition") que escribe la tarea diaria trae la imagen genérica
+    .split(`"image":["${OG_IMAGE}"]`).join(`"image":["${image}"]`);
   return out.replace("</head>", `${tags}\n</head>`);
 }
 
