@@ -1,0 +1,18 @@
+# nerdIA — Worker que sirve nerdia.com.ar
+# Mismo nombre que el Worker que ya está en producción, para que un deploy lo reemplace.
+name = "dawn-cell-d2d8"
+main = "src/worker.js"
+compatibility_date = "2026-09-16"
+
+# Si el dominio está conectado como "Custom Domain" en el panel de Cloudflare, un deploy no lo toca.
+# Dejar esto comentado salvo que se quiera administrar el dominio desde acá.
+# routes = [{ pattern = "nerdia.com.ar", custom_domain = true }]
+
+[[d1_databases]]
+binding = "NERDIA_D1"
+database_name = "nerdia-content"
+database_id = "1d09ec87-027d-435e-8160-1be1465d2b84"
+migrations_dir = "migrations"
+
+[observability]
+enabled = true
